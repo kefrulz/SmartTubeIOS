@@ -41,6 +41,8 @@ jobs:
             <key>GOOGLE_APP_ID</key><string>1:1234567890:ios:0000000000000000</string>
           </dict></plist>
           PLIST
+          cp 'SmartTubeApp/Smart Tube/GoogleService-Info.plist' \
+            SmartTubeApp/SmartTubeApp/GoogleService-Info.plist
 
       - name: Apply temporary upstream tvOS compile guards
         run: |
