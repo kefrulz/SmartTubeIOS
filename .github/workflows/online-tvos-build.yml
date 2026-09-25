@@ -1,0 +1,69 @@
+name: Temporary unsigned tvOS build
+
+on:
+  push:
+    branches:
+      - codex/online-tvos-build
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select available Xcode
+        run: |
+          xcode_path="$(find /Applications -maxdepth 1 -type d -name 'Xcode*.app' | sort -V | tail -1)"
+          test -n "$xcode_path"
+          sudo xcode-select -s "$xcode_path"
+          xcodebuild -version
+
+      - name: Create local-only build configuration
+        run: |
+          cp SmartTubeApp/Config/Secrets.xcconfig.example SmartTubeApp/Config/Secrets.xcconfig
+          sed -i '' 's/YOUR_TEAM_ID/5L2ZF2D47A/g' SmartTubeApp/Config/Secrets.xcconfig
+          cat > 'SmartTubeApp/Smart Tube/GoogleService-Info.plist' <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>API_KEY</key><string>placeholder</string>
+            <key>GCM_SENDER_ID</key><string>1234567890</string>
+            <key>PLIST_VERSION</key><string>1</string>
+            <key>BUNDLE_ID</key><string>com.ovidiu.smarttube.tv</string>
+            <key>PROJECT_ID</key><string>smarttube-local</string>
+            <key>STORAGE_BUCKET</key><string>smarttube-local.appspot.com</string>
+            <key>IS_ADS_ENABLED</key><false/>
+            <key>IS_ANALYTICS_ENABLED</key><false/>
+            <key>IS_APPINVITE_ENABLED</key><false/>
+            <key>IS_GCM_ENABLED</key><false/>
+            <key>IS_SIGNIN_ENABLED</key><false/>
+            <key>GOOGLE_APP_ID</key><string>1:1234567890:ios:0000000000000000</string>
+          </dict></plist>
+          PLIST
+
+      - name: Build unsigned tvOS app
+        run: |
+          xcodebuild build \
+            -workspace SmartTube.xcworkspace \
+            -scheme 'Smart Tube' \
+            -configuration Release \
+            -destination 'generic/platform=tvOS' \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            DEVELOPMENT_TEAM= \
+            PRODUCT_BUNDLE_IDENTIFIER=com.ovidiu.smarttube.tv
+
+      - name: Package unsigned IPA
+        run: |
+          mkdir -p "$RUNNER_TEMP/Payload"
+          cp -R "$RUNNER_TEMP/DerivedData/Build/Products/Release-appletvos/Smart Tube.app" "$RUNNER_TEMP/Payload/"
+          ditto -c -k --keepParent "$RUNNER_TEMP/Payload" "$RUNNER_TEMP/SmartTube-tvOS-unsigned.ipa"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SmartTube-tvOS-unsigned
+          path: ${{ runner.temp }}/SmartTube-tvOS-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 1
