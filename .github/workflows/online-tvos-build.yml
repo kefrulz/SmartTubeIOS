@@ -42,6 +42,17 @@ jobs:
           </dict></plist>
           PLIST
 
+      - name: Apply temporary upstream tvOS compile guards
+        run: |
+          sed -i '' 's/#if !os(macOS)/#if os(iOS)/' \
+            SmartTubeIOS/Sources/SmartTubeIOS/Views/Browse/PlaylistPickerSheet.swift
+          sed -i '' '271i\
+            #if !os(tvOS)
+          ' SmartTubeIOS/Sources/SmartTubeIOS/Views/Settings/SettingsView.swift
+          sed -i '' '279i\
+            #endif
+          ' SmartTubeIOS/Sources/SmartTubeIOS/Views/Settings/SettingsView.swift
+
       - name: Build unsigned tvOS app
         run: |
           xcodebuild build \
